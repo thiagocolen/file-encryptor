@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "encrypt": "node index.js encrypt ./target-folder",
+    "decrypt": "node index.js decrypt ./target-folder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
