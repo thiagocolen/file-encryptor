@@ -9,5 +9,8 @@
     "test": "node --test tests/file-encryptor.test.js"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "readline-sync": "^1.4.10"
+  }
 }
