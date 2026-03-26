@@ -34,24 +34,30 @@ function encryptFile(filePath, password) {
 
 // --- Decrypt a single file ---
 function decryptFile(filePath, password) {
-    const data = fs.readFileSync(filePath);
+    try {
+        const data = fs.readFileSync(filePath);
 
-    const salt = data.subarray(0, SALT_LENGTH);
-    const iv = data.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
-    const authTag = data.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
-    const encrypted = data.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
+        const salt = data.subarray(0, SALT_LENGTH);
+        const iv = data.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+        const authTag = data.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
+        const encrypted = data.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
 
-    const key = deriveKey(password, salt);
+        const key = deriveKey(password, salt);
 
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+        const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+        decipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
-    // Remove the .enc extension for the output file
-    const outputPath = filePath.replace(/\.enc$/, '');
-    fs.writeFileSync(outputPath, decrypted);
+        // Remove the .enc extension for the output file
+        const outputPath = filePath.replace(/\.enc$/, '');
+        fs.writeFileSync(outputPath, decrypted);
 
-    console.log(`✔ Decrypted: ${filePath}`);
+        console.log(`✔ Decrypted: ${filePath}`);
+        return true;
+    } catch (err) {
+        console.error(`✘ Error decrypting "${filePath}": Incorrect password or corrupted data.`);
+        return false;
+    }
 }
 
 // --- Recursively walk a directory ---
@@ -82,29 +88,30 @@ function encryptFolder(folderPath, password) {
 function decryptFolder(folderPath, password) {
     walkDir(folderPath, (filePath) => {
         if (filePath.endsWith('.enc')) {
-            decryptFile(filePath, password);
-            fs.unlinkSync(filePath);         // Delete .enc file after decrypting
+            if (decryptFile(filePath, password)) {
+                fs.unlinkSync(filePath);         // Delete .enc file after decrypting
+            }
         }
     });
     console.log('\n🔓 All files decrypted.');
 }
 
 // --- CLI ---
-const [, , mode, folder] = process.argv;
+if (require.main === module) {
+    const [, , mode, folder] = process.argv;
 
-if (!mode || !folder) {
-    console.log('Usage:');
-    console.log('  node index.js encrypt <folder>');
-    console.log('  node index.js decrypt <folder>');
-    process.exit(1);
-}
+    if (!mode || !folder) {
+        console.log('Usage:');
+        console.log('  node index.js encrypt <folder>');
+        console.log('  node index.js decrypt <folder>');
+        process.exit(1);
+    }
 
-// Prompt for password (simple sync approach)
-const readline = require('readline');
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-rl.question('Enter password: ', (password) => {
-    rl.close();
+    // Prompt for password (using readline-sync for masking)
+    const readlineSync = require('readline-sync');
+    const password = readlineSync.question('Enter password: ', {
+        hideEchoBack: true // Masking the password input
+    });
 
     const resolvedFolder = path.resolve(folder);
 
@@ -121,4 +128,13 @@ rl.question('Enter password: ', (password) => {
         console.error(`Unknown mode: "${mode}". Use "encrypt" or "decrypt".`);
         process.exit(1);
     }
-});
+}
+
+module.exports = {
+    deriveKey,
+    encryptFile,
+    decryptFile,
+    walkDir,
+    encryptFolder,
+    decryptFolder
+};
