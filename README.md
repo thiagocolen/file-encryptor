@@ -108,23 +108,36 @@ Enter password: ********
 
 ---
 
-## 📖 Direct CLI Usage
+## 🤖 Agentic Workflow Integration
 
-You can also run the tool directly targeting **any folder**:
+This tool is designed to be easily integrated into autonomous agent workflows (like **Gemini CLI**).
+
+### 🔑 Non-Interactive Mode
+To avoid interactive password prompts, use the `FILE_ENCRYPTOR_PASSWORD` environment variable.
 
 ```bash
-# Encrypt
-node index.js encrypt <folder-path>
+# Set password in environment
+export FILE_ENCRYPTOR_PASSWORD="your-strong-password"
 
-# Decrypt
-node index.js decrypt <folder-path>
+# Run without prompt
+node index.js encrypt ./my-data
 ```
 
-**Examples:**
+### 📊 JSON Output
+Use the `--json` flag to receive structured output. This will suppress all standard progress messages and return a single JSON object.
 
 ```bash
-node index.js encrypt ./my-secret-docs
-node index.js decrypt ./my-secret-docs
+node index.js encrypt ./my-data --json
+```
+
+**Success Response:**
+```json
+{ "status": "success", "mode": "encrypt", "folder": "/path/to/my-data" }
+```
+
+**Error Response:**
+```json
+{ "error": "FILE_ENCRYPTOR_PASSWORD environment variable is required for --json mode." }
 ```
 
 ---
