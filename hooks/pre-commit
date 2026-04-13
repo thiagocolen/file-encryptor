@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pre-commit hook to encrypt files before committing
+
+if [ -z "$FILE_ENCRYPTOR_PASSWORD" ]; then
+    echo "Error: FILE_ENCRYPTOR_PASSWORD environment variable is not set."
+    echo "Encryption skipped. Commit aborted."
+    exit 1
+fi
+
+echo "🔒 Encrypting files before commit..."
+node index.js encrypt .
+
+# Stage the newly created .enc files
+git add .

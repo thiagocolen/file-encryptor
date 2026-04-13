@@ -34,30 +34,41 @@ function encryptFile(filePath, password) {
 
 // --- Decrypt a single file ---
 function decryptFile(filePath, password) {
-    const data = fs.readFileSync(filePath);
+    try {
+        const data = fs.readFileSync(filePath);
 
-    const salt = data.subarray(0, SALT_LENGTH);
-    const iv = data.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
-    const authTag = data.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
-    const encrypted = data.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
+        const salt = data.subarray(0, SALT_LENGTH);
+        const iv = data.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+        const authTag = data.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
+        const encrypted = data.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
 
-    const key = deriveKey(password, salt);
+        const key = deriveKey(password, salt);
 
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+        const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+        decipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
-    // Remove the .enc extension for the output file
-    const outputPath = filePath.replace(/\.enc$/, '');
-    fs.writeFileSync(outputPath, decrypted);
+        // Remove the .enc extension for the output file
+        const outputPath = filePath.replace(/\.enc$/, '');
+        fs.writeFileSync(outputPath, decrypted);
 
-    console.log(`✔ Decrypted: ${filePath}`);
+        console.log(`✔ Decrypted: ${filePath}`);
+        return true;
+    } catch (err) {
+        console.error(`✘ Error decrypting "${filePath}": Incorrect password or corrupted data.`);
+        return false;
+    }
 }
 
 // --- Recursively walk a directory ---
 function walkDir(dir, callback) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
+        // Skip .git and node_modules
+        if (entry.isDirectory() && (entry.name === '.git' || entry.name === 'node_modules')) {
+            continue;
+        }
+
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
             walkDir(fullPath, callback);
@@ -82,8 +93,9 @@ function encryptFolder(folderPath, password) {
 function decryptFolder(folderPath, password) {
     walkDir(folderPath, (filePath) => {
         if (filePath.endsWith('.enc')) {
-            decryptFile(filePath, password);
-            fs.unlinkSync(filePath);         // Delete .enc file after decrypting
+            if (decryptFile(filePath, password)) {
+                fs.unlinkSync(filePath);         // Delete .enc file after decrypting
+            }
         }
     });
     console.log('\n🔓 All files decrypted.');
@@ -91,29 +103,66 @@ function decryptFolder(folderPath, password) {
 
 // --- CLI ---
 if (require.main === module) {
-    const [, , mode, folder] = process.argv;
+    const args = process.argv.slice(2);
+    const mode = args.find(a => !a.startsWith('--') && (a === 'encrypt' || a === 'decrypt'));
+    const folder = args.find(a => !a.startsWith('--') && a !== mode);
+    const isJson = args.includes('--json');
 
     if (!mode || !folder) {
-        console.log('Usage:');
-        console.log('  node index.js encrypt <folder>');
-        console.log('  node index.js decrypt <folder>');
+        if (isJson) {
+            console.log(JSON.stringify({ error: 'Usage: node index.js [mode] [folder] [--json]' }));
+        } else {
+            console.log('Usage:');
+            console.log('  node index.js encrypt <folder> [--json]');
+            console.log('  node index.js decrypt <folder> [--json]');
+        }
         process.exit(1);
     }
 
-    // Prompt for password (simple sync approach)
-    const readline = require('readline');
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    // Get password from environment or prompt
+    let password = process.env.FILE_ENCRYPTOR_PASSWORD;
 
-    rl.question('Enter password: ', (password) => {
-        rl.close();
-
-        const resolvedFolder = path.resolve(folder);
-
-        if (!fs.existsSync(resolvedFolder)) {
-            console.error(`Error: folder "${resolvedFolder}" not found.`);
+    if (!password) {
+        if (isJson) {
+            console.log(JSON.stringify({ error: 'FILE_ENCRYPTOR_PASSWORD environment variable is required for --json mode.' }));
             process.exit(1);
         }
+        const readlineSync = require('readline-sync');
+        password = readlineSync.question('Enter password: ', {
+            hideEchoBack: true // Masking the password input
+        });
+    }
 
+    const resolvedFolder = path.resolve(folder);
+
+    if (!fs.existsSync(resolvedFolder)) {
+        if (isJson) {
+            console.log(JSON.stringify({ error: `folder "${resolvedFolder}" not found.` }));
+        } else {
+            console.error(`Error: folder "${resolvedFolder}" not found.`);
+        }
+        process.exit(1);
+    }
+
+    // Suppress console logs if --json is used
+    if (isJson) {
+        const originalLog = console.log;
+        const originalError = console.error;
+        console.log = () => {};
+        console.error = () => {};
+
+        try {
+            if (mode === 'encrypt') {
+                encryptFolder(resolvedFolder, password);
+            } else {
+                decryptFolder(resolvedFolder, password);
+            }
+            originalLog(JSON.stringify({ status: 'success', mode, folder: resolvedFolder }));
+        } catch (err) {
+            originalError(JSON.stringify({ status: 'error', message: err.message }));
+            process.exit(1);
+        }
+    } else {
         if (mode === 'encrypt') {
             encryptFolder(resolvedFolder, password);
         } else if (mode === 'decrypt') {
@@ -122,7 +171,7 @@ if (require.main === module) {
             console.error(`Unknown mode: "${mode}". Use "encrypt" or "decrypt".`);
             process.exit(1);
         }
-    });
+    }
 }
 
 module.exports = {

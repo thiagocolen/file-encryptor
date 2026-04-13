@@ -108,24 +108,64 @@ Enter password: ********
 
 ---
 
-## 📖 Direct CLI Usage
+## 🤖 Agentic Workflow Integration
 
-You can also run the tool directly targeting **any folder**:
+This tool is designed to be easily integrated into autonomous agent workflows (like **Gemini CLI**).
 
-```bash
-# Encrypt
-node index.js encrypt <folder-path>
-
-# Decrypt
-node index.js decrypt <folder-path>
-```
-
-**Examples:**
+### 🔑 Non-Interactive Mode
+To avoid interactive password prompts, use the `FILE_ENCRYPTOR_PASSWORD` environment variable.
 
 ```bash
-node index.js encrypt ./my-secret-docs
-node index.js decrypt ./my-secret-docs
+# Set password in environment
+export FILE_ENCRYPTOR_PASSWORD="your-strong-password"
+
+# Run without prompt
+node index.js encrypt ./my-data
 ```
+
+### 📊 JSON Output
+Use the `--json` flag to receive structured output. This will suppress all standard progress messages and return a single JSON object.
+
+```bash
+node index.js encrypt ./my-data --json
+```
+
+**Success Response:**
+```json
+{ "status": "success", "mode": "encrypt", "folder": "/path/to/my-data" }
+```
+
+**Error Response:**
+```json
+{ "error": "FILE_ENCRYPTOR_PASSWORD environment variable is required for --json mode." }
+```
+
+---
+
+## ⚓ Git Pre-commit Hook
+
+You can automate the encryption of all files in your repository right before every commit. This ensures that your local files are always encrypted before they are staged and committed to version control.
+
+### 1️⃣ Set the Environment Variable
+The hook requires the `FILE_ENCRYPTOR_PASSWORD` to be set in your environment.
+
+```bash
+export FILE_ENCRYPTOR_PASSWORD="your-strong-password"
+```
+
+### 2️⃣ Install the Hook
+Copy the provided `pre-commit` script to your `.git/hooks` directory and make it executable.
+
+```bash
+cp hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+### 3️⃣ How it Works
+When you run `git commit`, the hook will:
+1.  Check for the `FILE_ENCRYPTOR_PASSWORD` environment variable.
+2.  Automatically run `node index.js encrypt .` (ignoring `.git` and `node_modules`).
+3.  Automatically stage the newly created `.enc` files.
 
 ---
 

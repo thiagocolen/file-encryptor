@@ -76,16 +76,15 @@ test('folder encryption and decryption round-trip', () => {
     teardown();
 });
 
-test('decryption with wrong password should fail', () => {
+test('decryption with wrong password should return false', () => {
     setup();
     const filePath = path.join(TEST_DIR, 'secret.txt');
     fs.writeFileSync(filePath, 'sensitive data');
 
     encryptFile(filePath, PASSWORD);
     
-    assert.throws(() => {
-        decryptFile(filePath + '.enc', 'wrong-password');
-    }, /Unsupported state or unable to authenticate data/); // Common GCM auth failure message
+    const result = decryptFile(filePath + '.enc', 'wrong-password');
+    assert.strictEqual(result, false, 'Decryption should return false on failure');
 
     teardown();
 });
