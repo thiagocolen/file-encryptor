@@ -90,35 +90,46 @@ function decryptFolder(folderPath, password) {
 }
 
 // --- CLI ---
-const [, , mode, folder] = process.argv;
+if (require.main === module) {
+    const [, , mode, folder] = process.argv;
 
-if (!mode || !folder) {
-    console.log('Usage:');
-    console.log('  node index.js encrypt <folder>');
-    console.log('  node index.js decrypt <folder>');
-    process.exit(1);
+    if (!mode || !folder) {
+        console.log('Usage:');
+        console.log('  node index.js encrypt <folder>');
+        console.log('  node index.js decrypt <folder>');
+        process.exit(1);
+    }
+
+    // Prompt for password (simple sync approach)
+    const readline = require('readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+    rl.question('Enter password: ', (password) => {
+        rl.close();
+
+        const resolvedFolder = path.resolve(folder);
+
+        if (!fs.existsSync(resolvedFolder)) {
+            console.error(`Error: folder "${resolvedFolder}" not found.`);
+            process.exit(1);
+        }
+
+        if (mode === 'encrypt') {
+            encryptFolder(resolvedFolder, password);
+        } else if (mode === 'decrypt') {
+            decryptFolder(resolvedFolder, password);
+        } else {
+            console.error(`Unknown mode: "${mode}". Use "encrypt" or "decrypt".`);
+            process.exit(1);
+        }
+    });
 }
 
-// Prompt for password (simple sync approach)
-const readline = require('readline');
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-rl.question('Enter password: ', (password) => {
-    rl.close();
-
-    const resolvedFolder = path.resolve(folder);
-
-    if (!fs.existsSync(resolvedFolder)) {
-        console.error(`Error: folder "${resolvedFolder}" not found.`);
-        process.exit(1);
-    }
-
-    if (mode === 'encrypt') {
-        encryptFolder(resolvedFolder, password);
-    } else if (mode === 'decrypt') {
-        decryptFolder(resolvedFolder, password);
-    } else {
-        console.error(`Unknown mode: "${mode}". Use "encrypt" or "decrypt".`);
-        process.exit(1);
-    }
-});
+module.exports = {
+    deriveKey,
+    encryptFile,
+    decryptFile,
+    walkDir,
+    encryptFolder,
+    decryptFolder
+};
