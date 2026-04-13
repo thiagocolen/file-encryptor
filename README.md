@@ -142,6 +142,33 @@ node index.js encrypt ./my-data --json
 
 ---
 
+## ⚓ Git Pre-commit Hook
+
+You can automate the encryption of all files in your repository right before every commit. This ensures that your local files are always encrypted before they are staged and committed to version control.
+
+### 1️⃣ Set the Environment Variable
+The hook requires the `FILE_ENCRYPTOR_PASSWORD` to be set in your environment.
+
+```bash
+export FILE_ENCRYPTOR_PASSWORD="your-strong-password"
+```
+
+### 2️⃣ Install the Hook
+Copy the provided `pre-commit` script to your `.git/hooks` directory and make it executable.
+
+```bash
+cp hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+### 3️⃣ How it Works
+When you run `git commit`, the hook will:
+1.  Check for the `FILE_ENCRYPTOR_PASSWORD` environment variable.
+2.  Automatically run `node index.js encrypt .` (ignoring `.git` and `node_modules`).
+3.  Automatically stage the newly created `.enc` files.
+
+---
+
 ## 🔧 How It Works — Technical Details
 
 ### 🧬 Encryption Algorithm

@@ -64,6 +64,11 @@ function decryptFile(filePath, password) {
 function walkDir(dir, callback) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
+        // Skip .git and node_modules
+        if (entry.isDirectory() && (entry.name === '.git' || entry.name === 'node_modules')) {
+            continue;
+        }
+
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
             walkDir(fullPath, callback);
